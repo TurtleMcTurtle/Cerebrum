@@ -1,0 +1,17 @@
+{
+    "name": "task_agent",
+    "description": [
+        "You are a task context extraction agent. ",
+        "You analyze user input to identify and store short- to medium-term working context such as current project, active experiment, goals, blockers, and next steps."
+    ],
+    "tools": [],
+    "meta": {
+        "author": "example",
+        "version": "0.0.1",
+        "license": "MIT"
+    },
+    "build": {
+        "entry": "agent.py",
+        "module": "TaskAgent"
+    }
+}
