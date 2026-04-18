@@ -261,7 +261,30 @@ def llm_chat(
                 "backend": "openai"
             }]
         )
+
+        # Using an Ollama model
+        response = llm_chat(
+            "agent1",
+            messages=[
+                {"role": "user", "content": "Summarize this article."}
+            ],
+            llms=[{"name": "qwen2.5:7b", "backend": "ollama"}]
+        )
         ```
+
+    Kernel Personalization:
+        When the kernel is configured with the ``mem0`` memory provider and
+        ``auto_inject: true``, the kernel may prepend a system message
+        containing relevant memories to the messages list before processing.
+        When ``auto_extract: true`` is set, the kernel stores conversation
+        turns as memories after each chat call. This injection is performed
+        by the kernel and does not modify the SDK request payload.
+
+    Ollama Dynamic Discovery:
+        Ollama models installed on the Ollama server are automatically
+        discovered by the kernel and do not require pre-registration in the
+        kernel's ``config.yaml``. Simply specify the model name and
+        ``"backend": "ollama"`` in the ``llms`` configuration list.
     """
     query = LLMQuery(
         llms=llms,
@@ -329,6 +352,10 @@ def llm_chat_with_json_output(
             }
         )
         ```
+
+    Kernel Personalization:
+        Personalization memory injection does not apply to
+        ``chat_with_json_output`` action types.
     """
     query = LLMQuery(
         llms=llms,
@@ -411,6 +438,14 @@ def llm_chat_with_tool_call_output(
             }]
         )
         ```
+
+    Kernel Personalization:
+        When the kernel is configured with the ``mem0`` memory provider and
+        ``auto_inject: true``, the kernel may prepend a system message
+        containing relevant memories to the messages list before processing.
+        Note that conversation extraction does not occur for this action
+        type — only context injection applies. This injection is performed
+        by the kernel and does not modify the SDK request payload.
     """
     query = LLMQuery(
         llms=llms,
