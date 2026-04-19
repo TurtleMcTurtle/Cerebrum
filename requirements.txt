@@ -3,3 +3,4 @@ platformdirs
 pydantic
 mcp
 datasets
+tqdm
