@@ -266,3 +266,126 @@ class LLMJudge:
         except Exception as e:
             logger.warning("Judge evaluation failed: %s", e)
             return JudgeScores()
+
+
+def _extract_keywords(profile: SyntheticProfile, task_context: SyntheticTaskContext) -> Dict[str, list]:
+    """Extract searchable keywords from synthetic profile and task context.
+
+    Returns a dict with 'profile' and 'task' keyword lists.
+    """
+    profile_keywords = []
+    # User name (first and last separately)
+    for part in profile.user_name.split():
+        if len(part) > 2:
+            profile_keywords.append(part.lower())
+    # Tools
+    for tool in profile.preferred_tools:
+        profile_keywords.append(tool.lower())
+    # Language
+    if profile.preferred_language:
+        profile_keywords.append(profile.preferred_language.lower())
+
+    task_keywords = []
+    # Project name words (skip short words)
+    for word in task_context.current_project.split():
+        if len(word) > 2:
+            task_keywords.append(word.lower())
+    # Experiment name words
+    for word in task_context.active_experiment.split():
+        if len(word) > 3:
+            task_keywords.append(word.lower())
+    # Goal keywords (first 3 significant words per goal)
+    for goal in task_context.goals:
+        for word in goal.split():
+            if len(word) > 3:
+                task_keywords.append(word.lower())
+    # Blocker keywords
+    for blocker in task_context.blockers:
+        for word in blocker.split():
+            if len(word) > 3:
+                task_keywords.append(word.lower())
+
+    return {"profile": list(set(profile_keywords)), "task": list(set(task_keywords))}
+
+
+def keyword_score(response: str, keywords: list) -> int:
+    """Score 1-5 based on fraction of keywords found in the response.
+
+    Args:
+        response: The assistant's response text.
+        keywords: List of lowercase keywords to search for.
+
+    Returns:
+        Integer score 1-5.
+    """
+    if not keywords:
+        return 1
+    response_lower = response.lower()
+    hits = sum(1 for kw in keywords if kw in response_lower)
+    ratio = hits / len(keywords)
+    if ratio >= 0.5:
+        return 5
+    elif ratio >= 0.35:
+        return 4
+    elif ratio >= 0.2:
+        return 3
+    elif ratio >= 0.1:
+        return 2
+    else:
+        return 1
+
+
+class HybridJudge:
+    """Combines deterministic keyword matching with LLM-based scoring.
+
+    The keyword scores provide a reliable signal for whether the response
+    references profile/task attributes. The LLM scores assess quality and
+    integration. The final score is the average of both, rounded.
+    """
+
+    def __init__(self, agent_name: str = "eval_judge"):
+        self.llm_judge = LLMJudge(agent_name=agent_name)
+
+    def evaluate(
+        self,
+        query: str,
+        response: str,
+        profile: SyntheticProfile,
+        task_context: SyntheticTaskContext,
+        plausible_actions: list[str] | None = None,
+    ) -> JudgeScores:
+        """Score using both keyword matching and LLM judge."""
+        # Keyword-based scores
+        keywords = _extract_keywords(profile, task_context)
+        kw_profile = keyword_score(response, keywords["profile"])
+        kw_task = keyword_score(response, keywords["task"])
+        kw_integration = min(kw_profile, kw_task)  # both must be present
+
+        # LLM-based scores
+        llm_scores = self.llm_judge.evaluate(
+            query, response, profile, task_context, plausible_actions
+        )
+
+        # Combine: average keyword and LLM scores
+        def _avg(kw: int, llm_val: int | None) -> int:
+            if llm_val is None:
+                return kw
+            return max(1, min(5, round((kw + llm_val) / 2)))
+
+        return JudgeScores(
+            profile_usage_score=_avg(kw_profile, llm_scores.profile_usage_score),
+            task_usage_score=_avg(kw_task, llm_scores.task_usage_score),
+            integration_score=_avg(kw_integration, llm_scores.integration_score),
+            profile_usage_reasoning=(
+                f"keyword_hits={kw_profile}/5; "
+                + (llm_scores.profile_usage_reasoning or "")
+            ),
+            task_usage_reasoning=(
+                f"keyword_hits={kw_task}/5; "
+                + (llm_scores.task_usage_reasoning or "")
+            ),
+            integration_reasoning=(
+                f"keyword_integration={kw_integration}/5; "
+                + (llm_scores.integration_reasoning or "")
+            ),
+        )

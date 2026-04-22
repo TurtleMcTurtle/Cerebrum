@@ -43,7 +43,7 @@ from benchmarks.shared_memory.models import (
     MemoryCounts,
     TrialResult,
 )
-from benchmarks.shared_memory.judge import LLMJudge
+from benchmarks.shared_memory.judge import HybridJudge
 from benchmarks.shared_memory.pipeline import AgentPipeline
 from benchmarks.shared_memory.results import ResultsWriter
 from benchmarks.shared_memory.synth import SyntheticDataGenerator
@@ -75,7 +75,7 @@ class EvaluationOrchestrator:
         self.condition = condition
 
         self.generator = SyntheticDataGenerator()
-        self.judge = LLMJudge()
+        self.judge = HybridJudge()
         self.writer = ResultsWriter(output_dir=output_dir, write_csv=write_csv)
 
     def run_single_trial(
