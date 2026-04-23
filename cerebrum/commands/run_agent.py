@@ -28,6 +28,7 @@ class AgentConfig:
         debug (bool): Enable debug logging
         config_path (str): Path to JSON config file
         mode (str): Loading mode ('local' or 'remote')
+        share_memory (bool): When True, agent memories use sharing_policy='shared'
     """
     agent_path: Optional[str] = None
     agent_author: Optional[str] = None
@@ -38,6 +39,7 @@ class AgentConfig:
     debug: bool = False
     config_path: Optional[str] = None
     mode: Optional[str] = None
+    share_memory: bool = False
 
 class AgentRunner:
     """
@@ -166,6 +168,17 @@ class AgentRunner:
             logger.info(f"Initializing agent: {agent_name}")
             agent = agent_class(agent_name)
             
+            # Propagate share-memory flag to agent instance.
+            # Agents can read this via getattr(self, 'share_memory', False)
+            # to determine whether to use sharing_policy="shared" or "private".
+            try:
+                agent.share_memory = self.config.share_memory
+            except AttributeError:
+                logger.warning(
+                    "Could not set share_memory on agent %s (may use __slots__)",
+                    agent_name,
+                )
+            
             logger.info(f"Running agent: {agent_name}")
             result = agent.run(self.config.task_input)
             
@@ -200,6 +213,8 @@ def parse_arguments() -> AgentConfig:
     parser.add_argument("--config", help="Path to a JSON config file for the agent")
     parser.add_argument("--mode", choices=["local", "remote"],
                        help="Explicitly specify loading mode: 'local' for local files, 'remote' for remote download")
+    parser.add_argument("--share-memory", action="store_true",
+                       help="Create memories with sharing_policy='shared' instead of 'private'")
     
     args = parser.parse_args()
     
@@ -231,7 +246,8 @@ def parse_arguments() -> AgentConfig:
         task_input=args.task_input,
         debug=args.debug,
         config_path=args.config,
-        mode=mode
+        mode=mode,
+        share_memory=args.share_memory
     )
 
 def main():

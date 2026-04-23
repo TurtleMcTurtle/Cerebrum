@@ -1,0 +1,17 @@
+{
+    "name": "profile_agent",
+    "description": [
+        "You are a profile extraction agent. ",
+        "You analyze user input to identify and store stable user attributes such as name, preferred tools, preferred programming language, and response style."
+    ],
+    "tools": [],
+    "meta": {
+        "author": "example",
+        "version": "0.0.1",
+        "license": "MIT"
+    },
+    "build": {
+        "entry": "agent.py",
+        "module": "ProfileAgent"
+    }
+}
