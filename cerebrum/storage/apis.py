@@ -155,6 +155,7 @@ def retrieve_file(
 def create_file(
         agent_name: str, 
         file_path: str,
+        file_name: Optional[str] = None,
         base_url: str = aios_kernel_url
     ) -> StorageResponse:
     """
@@ -163,6 +164,9 @@ def create_file(
     Args:
         agent_name: Name of the agent
         file_path: Path where to create the file
+        file_name: Optional[str] — Custom file name for the created file.
+            When provided, the kernel uses this name instead of deriving it
+            from the file path. Defaults to None.
         base_url: API base URL
         
     Returns:
@@ -176,10 +180,18 @@ def create_file(
             print(f"File created at {file_path}")
         else:
             print(f"Failed to create file: {response.error}")
+        
+        # Create a file with a custom file name
+        response = create_file("agent1", "src/", file_name="report.txt")
+        if response.finished:
+            print("File created with custom name")
         ```
     """
+    params = {"file_path": file_path}
+    if file_name is not None:
+        params["file_name"] = file_name
     query = StorageQuery(
-        params={"file_path": file_path},
+        params=params,
         operation_type="create_file"
     )
     return send_request(agent_name, query, base_url)

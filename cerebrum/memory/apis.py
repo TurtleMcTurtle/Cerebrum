@@ -1,3 +1,32 @@
+"""Memory API module for AIOS kernel memory operations.
+
+Provides functions to create, read, update, delete, and search agent memories
+through the AIOS kernel.
+
+Kernel-Side Memory Configuration:
+    The following fields are configured in the kernel's ``config.yaml`` under
+    the ``memory`` section. They are **not** configurable through the SDK.
+
+    memory.provider : str
+        Memory backend to use. Accepts ``"in-house"``, ``"mem0"``, or ``"zep"``.
+    memory.auto_extract : bool
+        When true, the kernel automatically stores conversation turns as
+        memories after each chat LLM call.
+    memory.auto_inject : bool
+        When true, the kernel retrieves and injects relevant memories before
+        each chat LLM call.
+    memory.relevance_threshold : float
+        Minimum similarity score a memory must meet to be eligible for
+        injection.
+    memory.max_injected_memories : int
+        Maximum number of memories injected per LLM call.
+    memory.max_memory_tokens : int
+        Token budget for the injected memory block.
+
+    ``memory.mem0.*`` and ``memory.zep.*`` contain provider-specific kernel
+    configuration and are not set from the SDK.
+"""
+
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any, Union
 from typing_extensions import Literal
@@ -56,7 +85,8 @@ def create_memory(agent_name: str,
     Args:
         agent_name: Name of the agent to handle the request
         content: Content of the memory
-        metadata: Optional metadata (keywords, context, tags, etc.)
+        metadata: Optional metadata (keywords, context, tags, etc.).
+            Provider-specific keys can be passed through this dict.
         base_url: Base URL for the API server
         
     Returns:
@@ -68,6 +98,18 @@ def create_memory(agent_name: str,
         >>> response = create_memory("agent1", "Meeting notes: Discussed Q1 goals", metadata)
         >>> print(response.memory_id)  # "mem_123abc"
         >>> print(response.success)    # True
+
+    Provider-Specific Metadata Keys:
+        mem0:
+            ``user_id`` (str): Scopes memory to a specific user.
+            ``agent_id`` (str): Scopes memory to a specific agent.
+            Falls back to kernel config defaults if not provided.
+        zep:
+            ``session_id`` (str): Scopes memory to a session.
+            ``user_id`` (str): Scopes memory to a user.
+            Falls back to kernel config defaults if not provided.
+        in-house:
+            No provider-specific metadata keys required.
     """
     query = MemoryQuery(
         operation_type="add_memory",
@@ -79,12 +121,13 @@ def create_agentic_memory(agent_name: str,
                  content: str, 
                  metadata: Optional[Dict[str, Any]] = None,
                  base_url: str = aios_kernel_url) -> MemoryResponse:
-    """Create a new memory note.
+    """Create a new agentic memory note.
     
     Args:
         agent_name: Name of the agent to handle the request
         content: Content of the memory
-        metadata: Optional metadata (keywords, context, tags, etc.)
+        metadata: Optional metadata (keywords, context, tags, etc.).
+            Provider-specific keys can be passed through this dict.
         base_url: Base URL for the API server
         
     Returns:
@@ -93,9 +136,21 @@ def create_agentic_memory(agent_name: str,
     Example:
         >>> # Create a memory with content and metadata
         >>> metadata = {"tags": ["important", "meeting"], "priority": "high"}
-        >>> response = create_memory("agent1", "Meeting notes: Discussed Q1 goals", metadata)
+        >>> response = create_agentic_memory("agent1", "Meeting notes: Discussed Q1 goals", metadata)
         >>> print(response.memory_id)  # "mem_123abc"
         >>> print(response.success)    # True
+
+    Provider-Specific Metadata Keys:
+        mem0:
+            ``user_id`` (str): Scopes memory to a specific user.
+            ``agent_id`` (str): Scopes memory to a specific agent.
+            Falls back to kernel config defaults if not provided.
+        zep:
+            ``session_id`` (str): Scopes memory to a session.
+            ``user_id`` (str): Scopes memory to a user.
+            Falls back to kernel config defaults if not provided.
+        in-house:
+            No provider-specific metadata keys required.
     """
     query = MemoryQuery(
         operation_type="add_agentic_memory",
@@ -139,7 +194,8 @@ def update_memory(agent_name: str,
         agent_name: Name of the agent to handle the request
         memory_id: ID of the memory to update
         content: Optional new content
-        metadata: Optional new metadata
+        metadata: Optional new metadata.
+            Provider-specific keys can be passed through this dict.
         base_url: Base URL for the API server
         
     Returns:
@@ -155,6 +211,18 @@ def update_memory(agent_name: str,
         ...     metadata=new_metadata
         ... )
         >>> print(response.success)    # True
+
+    Provider-Specific Metadata Keys:
+        mem0:
+            ``user_id`` (str): Scopes memory to a specific user.
+            ``agent_id`` (str): Scopes memory to a specific agent.
+            Falls back to kernel config defaults if not provided.
+        zep:
+            ``session_id`` (str): Scopes memory to a session.
+            ``user_id`` (str): Scopes memory to a user.
+            Falls back to kernel config defaults if not provided.
+        in-house:
+            No provider-specific metadata keys required.
     """
     params = {"memory_id": memory_id}
     if metadata is not None:
@@ -218,6 +286,21 @@ def search_memories(agent_name: str,
         # Memory ID: mem_123abc
         # Content: Meeting notes: Discussed Q1 goals
         # Score: 0.92
+
+    Provider-Specific Metadata Keys:
+        These keys can be used to scope search results when passed via
+        the ``metadata`` parameter of memory creation functions.
+
+        mem0:
+            ``user_id`` (str): Scopes memory to a specific user.
+            ``agent_id`` (str): Scopes memory to a specific agent.
+            Falls back to kernel config defaults if not provided.
+        zep:
+            ``session_id`` (str): Scopes memory to a session.
+            ``user_id`` (str): Scopes memory to a user.
+            Falls back to kernel config defaults if not provided.
+        in-house:
+            No provider-specific metadata keys required.
     """
     query = MemoryQuery(
         operation_type="retrieve_memory",
