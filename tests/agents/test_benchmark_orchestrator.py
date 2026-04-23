@@ -62,7 +62,7 @@ def _build_orchestrator(condition="both"):
     with patch(
         "benchmarks.shared_memory.run_evaluation.SyntheticDataGenerator"
     ), patch(
-        "benchmarks.shared_memory.run_evaluation.LLMJudge"
+        "benchmarks.shared_memory.run_evaluation.HybridJudge"
     ), patch(
         "benchmarks.shared_memory.run_evaluation.ResultsWriter"
     ) as mock_writer_cls:
